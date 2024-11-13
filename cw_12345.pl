@@ -1,9 +1,6 @@
 % Accomplish a given Task and return the Cost
 solve_task(Task, Cost, Path) :-
-    (Task = go(_) -> solve_task_aStar(Task, Path), !
-    ;
-    solve_task_bfs(Task, Path), !
-    ),
+    solve_task_bfs(Task, Path), !,
     length(Path, Cost),
     my_agent(A),
     agent_do_moves(A, Path). 
