@@ -32,15 +32,17 @@ solve_task_aStar(Task, [[_, PathCost, [Pos|RPath]]|Rest], Visited, FinalPath) :-
         [NewTotalCost, NewPathCost, [NewPos,Pos|RPath]], % What Im collecting
         (
             map_adjacent(Pos,NewPos,empty), 
-            \+ ord_memberchk(NewPos,Visited),
+            \+ memberchk(NewPos,Visited),
             NewPathCost is PathCost + 1,
             man_dist(NewPathCost, NewPos, Tar, NewTotalCost)
         ),
         NewNodes
     ),
-    sort(NewNodes, SortedNodes),
-    ord_union(Rest, SortedNodes, NewQueue),
-    solve_task_aStar(Task, NewQueue, [Pos|Visited], FinalPath).
+    sort(NewNodes, SortedNodes), % Sort the new nodes to then combine 
+    ord_union(Rest, SortedNodes, NewQueue), % Combine with other paths to explore
+    findall(NewPos, (member([_, _, [NewPos|_]], SortedNodes)), NewPositions), % get all the NewNode Positions
+    ord_union(Visited, NewPositions, NewVisited), % Add to a list of where we dont need to look
+    solve_task_aStar(Task, NewQueue, [Pos|NewVisited], FinalPath).
 
 
 
