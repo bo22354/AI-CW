@@ -1,35 +1,39 @@
 % Accomplish a given Task and return the Cost
 solve_task(Task, Cost, Path) :-
-    (Task = go(_) -> solve_task_aStar(Task, Path), !
+    my_agent(A),
+    get_agent_energy(A, Energy),
+    (Task = go(_) -> solve_task_aStar(Task, Energy, Path), !
     ;
     solve_task_bfs(Task, Path), !
     ),
     length(Path, Cost),
-    my_agent(A),
     agent_do_moves(A, Path). 
 
 
-solve_task_aStar(Task, Path) :-
+solve_task_aStar(Task, Energy, Path) :-
+    print(Energy),
     my_agent(A),
     get_agent_position(A, P),
     (achieved(Task, P) -> Path = []
     ;
         Task = go(Tar),
         man_dist(0, P, Tar, TotalCost), % Distance to Target
-        InitialQueue = [[TotalCost, 0, [P]]], % Total Cost, Cost of current travel, path taken
+        InitialQueue = [[Energy, TotalCost, 0, [P]]], % Total Cost, Cost of current travel, path taken
         solve_task_aStar(Task, InitialQueue, [], Path)
     ).
 
 
-solve_task_aStar(Task,  [[_, _, [Pos|RPath]]|_], _, FinalPath) :- % Check for complete
+solve_task_aStar(Task,  [[Energy, _, _, [Pos|RPath]]|_], _, FinalPath) :- % Check for complete
     achieved(Task, Pos),
+    print(Energy),
     reverse([Pos|RPath], [_|FinalPath]).
 
 
-solve_task_aStar(Task, [[_, PathCost, [Pos|RPath]]|Rest], Visited, FinalPath) :-
+solve_task_aStar(Task, [[Energy, _, PathCost, [Pos|RPath]]|Rest], Visited, FinalPath) :-
     Task = go(Tar),
+    NewEnergy is Energy -1,
     findall(
-        [NewTotalCost, NewPathCost, [NewPos,Pos|RPath]], % What Im collecting
+        [NewEnergy, NewTotalCost, NewPathCost, [NewPos,Pos|RPath]], % What Im collecting
         (
             map_adjacent(Pos,NewPos,empty), 
             \+ memberchk(NewPos,Visited),
@@ -40,7 +44,7 @@ solve_task_aStar(Task, [[_, PathCost, [Pos|RPath]]|Rest], Visited, FinalPath) :-
     ),
     sort(NewNodes, SortedNodes), % Sort the new nodes to then combine 
     ord_union(Rest, SortedNodes, NewQueue), % Combine with other paths to explore
-    findall(NewPos, (member([_, _, [NewPos|_]], SortedNodes)), NewPositions), % get all the NewNode Positions
+    findall(NewPos, (member([_, _, _, [NewPos|_]], SortedNodes)), NewPositions), % get all the NewNode Positions
     ord_union(Visited, NewPositions, NewVisited), % Add to a list of where we dont need to look
     solve_task_aStar(Task, NewQueue, [Pos|NewVisited], FinalPath).
 
