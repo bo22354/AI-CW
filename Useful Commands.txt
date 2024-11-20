@@ -1,0 +1,1 @@
+T1 = go(p(20,20)), T2 = go(p(1,1)), T3 = go(p(8,7)), solve_task(T1, _, _), solve_task(T2, _, _), solve_task(T3, _, _).
