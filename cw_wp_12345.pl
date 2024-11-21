@@ -23,6 +23,7 @@ find_identity(A) :-
     get_agent_position(Agent, P),
 
     recharge_stations([[[P], 10000]], [], [], [], Stations, _), % Find locations of all recharge Stations
+    
 
     findall(A,actor(A),As), % Collect together all the actors
 

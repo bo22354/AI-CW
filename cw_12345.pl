@@ -217,6 +217,43 @@ recharge_stations([[[Pos|Path], Energy]|Rest], Visited, Stations, StationPaths, 
 
     recharge_stations(NewQueue, [Pos|Visited], NewStations, NewStationPaths, FinalStations, FinalStationPaths).
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+find_oracles(Oracles) :-
+    my_agent(A),
+    get_agent_position(A,P),
+    find_oracles([[P]], [], [], Oracles).
+
+find_oracles([], _, Oracles, Oracles) :-
+    print_debug('Base Case', 'Queue Empty'),
+    print_debug('Oracles Found', Oracles).
+
+find_oracles([[Pos|Path]|Rest], Visited, Oracles, FinalOracles) :-
+    findall(
+        [NewPos, Pos|Path],
+        (
+            map_adjacent(Pos, NewPos, empty),  
+            \+ member(NewPos, Visited),   % NewPos hasnt been visited
+            \+ member([NewPos|_], Rest)  % NewPos isnt queued to be visited
+        ),
+        EmptyNodes
+    ),
+    findall(
+        [NewPos],
+        (
+            map_adjacent(Pos, NewPos, o(_)),  
+            \+ member(NewPos, Oracles),   % NewPos isnt a station already found
+            print_debug("Oracles", Oracles),
+            print_debug("Pos", NewPos)
+        ),
+        OracleNodes
+    ),
+
+    maplist(nth0(0), OracleNodes, OraclePositions), % Extract oracle positions
+    ord_union(Oracles, OraclePositions, NewOracles),  
+
+    append(Rest, EmptyNodes, NewQueue), % Add all new exploration options to the queue
+
+    find_oracles(NewQueue, [Pos|Visited], NewOracles, FinalOracles).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
