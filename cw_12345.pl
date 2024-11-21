@@ -28,7 +28,7 @@ recharge(Task, Path) :-
 
     (Task = go(Tar) ->
         findall( % Create a new queue with the 
-            [TotalCost, 0, Path, MaxEnergy],
+            [TotalCost, 0, [Pos], MaxEnergy],
             (
                 member(Path, StationPaths),
                 Path = [Pos| _],
@@ -37,9 +37,8 @@ recharge(Task, Path) :-
             Queue
         ),
 
-        solve_task_aStar(Task, Queue, [], Path2), % will return the path to target from (and including) the recharge station
+        solve_task_aStar(Task, Queue, [], A, Path2), % will return the path to target from (and including) the recharge station
         find_sub_path(RevStationPaths, Path2, StationPath), % Find which Station Path is the path being used for Full Path
-        append(StationPath, Rest, Path2), % Remove Station Path from Full Path
         agent_do_moves(A, StationPath), % Run moves for getting to the station
 
          % Recharge
@@ -48,41 +47,41 @@ recharge(Task, Path) :-
             map_adjacent(CurrPos,_,c(X))
         ),
         agent_topup_energy(A, c(X)),
-        Path = Rest,
+        Path = Path2,
         true
     ;
         findall( % Create a new queue with the 
-            [Path, MaxEnergy],
+            [[Pos], MaxEnergy],
             (
-                member(Path, StationPaths)
+                member(Path, StationPaths),
+                Path = [Pos| _]
+
             ),
             Queue
         ),
-
-        solve_task_aStar(Task, Queue, [], Path2), % will return the path to target from (and including) the recharge station
+        solve_task_aStar(Task, Queue, [], A, Path2), % will return the path to target from (and including) the recharge station
         find_sub_path(RevStationPaths, Path2, StationPath), % Find which Station Path is the path being used for Full Path
-        append(StationPath, Rest, Path2), % Remove Station Path from Full Path
         agent_do_moves(A, StationPath), % Run moves for getting to the station
-
-         % Recharge
+        
+        % Recharge
         get_agent_position(A, CurrPos), 
         once(
             map_adjacent(CurrPos,_,c(X))
         ),
+
         agent_topup_energy(A, c(X)),
-        Path = Rest,
+        Path = Path2,
         true  
     ).
 
+
 find_sub_path(StationPaths, FullPath, StationPath) :-
-    member(Temp, StationPaths), % Gets each station path individually
-    Temp = [_|StationPath],     % Removes the first element
-    append(_, Rest, FullPath),  % Splits FullPath into a prefix and Rest
-    append(StationPath, _, Rest), % Checks if StationPath is a prefix of Rest
+    member(Temp, StationPaths), % Get each station path individually
+    last(Temp, Last),
+    FullPath = [First|_],    % get the first move from the station
+    map_adjacent(Last, First, _), % Check if were looking at the same station for both paths
+    Temp = [_|StationPath],     % Remove the first element to create a runable StationPath
     !.                          % Cut to stop after finding the first match
-
-
-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -96,33 +95,34 @@ solve_task_aStar(Task, Energy, Path) :-
             print_debug("go", ""),
             man_dist(0, P, Tar, TotalCost), % Distance to Target
             InitialQueue = [[TotalCost, 0, [P], Energy]], % Total Cost, Cost of current travel, path taken
-            solve_task_aStar(Task, InitialQueue, [], Path),
+            solve_task_aStar(Task, InitialQueue, [], A, Path),
             true  
         ;
             print_debug("find", ""),
             InitialQueue = [[[P], Energy]], % Total Cost, Cost of current travel, path taken
-            solve_task_aStar(Task, InitialQueue, [], Path),
+            solve_task_aStar(Task, InitialQueue, [], A, Path),
             true
         )    
     ).
 
 
-solve_task_aStar(Task,  [[_, _, [Pos|RPath], Energy]|_], _, FinalPath) :- % Check for complete
+solve_task_aStar(Task,  [[_, _, [Pos|RPath], Energy]|_], _, _, FinalPath) :- % Check for complete
     Energy >= 0,
     achieved(Task, Pos),
     reverse([Pos|RPath], [_|FinalPath]).
 
 
-solve_task_aStar(Task, [[_, PathCost, [Pos|RPath], Energy]|Rest], Visited, FinalPath) :-
+solve_task_aStar(Task, [[_, PathCost, [Pos|RPath], Energy]|Rest], Visited, Agent, FinalPath) :-
     Task = go(Tar),
     NewEnergy is Energy -1,
     (NewEnergy < 0 ->
-        solve_task_aStar(Task, Rest, Visited, FinalPath)
+        solve_task_aStar(Task, Rest, Visited, Agent, FinalPath)
     ;
         findall(
             [NewTotalCost, NewPathCost, [NewPos,Pos|RPath], NewEnergy], % What Im collecting
             (
-                map_adjacent(Pos,NewPos,empty), 
+                map_adjacent(Pos,NewPos,Obj), 
+                (Obj = a(Agent); Obj = empty),
                 \+ memberchk(NewPos,Visited),
                 NewPathCost is PathCost + 1,
                 man_dist(NewPathCost, NewPos, Tar, NewTotalCost)
@@ -133,35 +133,36 @@ solve_task_aStar(Task, [[_, PathCost, [Pos|RPath], Energy]|Rest], Visited, Final
         ord_union(Rest, SortedNodes, NewQueue), % Combine with other paths to explore
         findall(NewPos, (member([_, _, [NewPos|_], _], SortedNodes)), NewPositions), % get all the NewNode Positions
         ord_union(Visited, NewPositions, NewVisited), % Add to a list of where we dont need to look
-        solve_task_aStar(Task, NewQueue, [Pos|NewVisited], FinalPath)  
+        solve_task_aStar(Task, NewQueue, [Pos|NewVisited], Agent, FinalPath)  
     ).
 
 
 
 
-solve_task_aStar(Task,  [[[Pos|RPath], Energy]|_], _, FinalPath) :- % Check for complete
+solve_task_aStar(Task,  [[[Pos|RPath], Energy]|_], _, _, FinalPath) :- % Check for complete
     Energy >= 0,
     achieved(Task, Pos),
     reverse([Pos|RPath], [_|FinalPath]).
 
-solve_task_aStar(Task, [[[Pos|RPath], Energy]|Rest], Visited, FinalPath) :-
+solve_task_aStar(Task, [[[Pos|RPath], Energy]|Rest], Visited, Agent, FinalPath) :-
+
     (Energy =< 0 ->
-        solve_task_aStar(Task, Rest, Visited, FinalPath)
+        solve_task_aStar(Task, Rest, Visited, Agent, FinalPath)
     ;
         NewEnergy is Energy -1,
         findall(
             [[NewPos, Pos|RPath], NewEnergy],
             (   
-                map_adjacent(Pos,NewPos,empty),
+                map_adjacent(Pos,NewPos,Obj),
+                (Obj = a(Agent); Obj = empty),
                 \+ member(NewPos, Visited) 
-                % \+ member([NewPos|_],Rest)
             ),
             NewNodes
         ),
         append(Rest, NewNodes, NewQueue),
         findall(NewPos, (member([[NewPos|_], _], NewNodes)), NewPositions), % get all the NewNode Positions
         ord_union(Visited, NewPositions, NewVisited), % Add to a list of where we dont need to look
-        solve_task_aStar(Task, NewQueue, [Pos|NewVisited], FinalPath)
+        solve_task_aStar(Task, NewQueue, [Pos|NewVisited], Agent, FinalPath)
     ).
 
 
