@@ -14,9 +14,10 @@ solve_task(Task, Cost, Path) :-
             % print_debug('Stations Paths', StationPaths),
             Task = go(Tar),
             maplist(reverse, StationPaths, RevStationPaths),
-            
+            ailp_grid_size(GridSize),
+            MaxEnergy is ceiling((GridSize*GridSize) / 4),
             findall( % Create a new queue with the 
-                [TotalCost, 0, Path, 100],
+                [TotalCost, 0, Path, MaxEnergy],
                 (
                     member(Path, StationPaths),
                     Path = [Pos| _],
