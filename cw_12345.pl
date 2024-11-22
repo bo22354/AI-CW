@@ -8,9 +8,12 @@ solve_task(Task, Cost, Path) :-
     my_agent(A),
     get_agent_energy(A, Energy),
     (solve_task_aStar(Task, Energy, Path1) -> 
-            Path = Path1,
+            print_debug("Path1", Path1),
+            Path1 = [_|Rest],
+            Path = Rest,
             true
         ;
+            print_debug("Here", ""),
             recharge(Task, Path2),
             Path = Path2,
             true
@@ -38,7 +41,8 @@ recharge(Task, Path) :-
         ),
 
         solve_task_aStar(Task, Queue, [], A, Path2), % will return the path to target from (and including) the recharge station
-        find_sub_path(RevStationPaths, Path2, StationPath), % Find which Station Path is the path being used for Full Path
+        Path2 = [_|Rest],
+        find_sub_path(RevStationPaths, Rest, StationPath), % Find which Station Path is the path being used for Full Path
         agent_do_moves(A, StationPath), % Run moves for getting to the station
 
          % Recharge
@@ -47,7 +51,7 @@ recharge(Task, Path) :-
             map_adjacent(CurrPos,_,c(X))
         ),
         agent_topup_energy(A, c(X)),
-        Path = Path2,
+        Path = Rest,
         true
     ;
         findall( % Create a new queue with the 
@@ -60,7 +64,8 @@ recharge(Task, Path) :-
             Queue
         ),
         solve_task_aStar(Task, Queue, [], A, Path2), % will return the path to target from (and including) the recharge station
-        find_sub_path(RevStationPaths, Path2, StationPath), % Find which Station Path is the path being used for Full Path
+        Path2 = [_|Rest],
+        find_sub_path(RevStationPaths, Rest, StationPath), % Find which Station Path is the path being used for Full Path
         agent_do_moves(A, StationPath), % Run moves for getting to the station
         
         % Recharge
@@ -70,7 +75,7 @@ recharge(Task, Path) :-
         ),
 
         agent_topup_energy(A, c(X)),
-        Path = Path2,
+        Path = Rest,
         true  
     ).
 
@@ -109,7 +114,7 @@ solve_task_aStar(Task, Energy, Path) :-
 solve_task_aStar(Task,  [[_, _, [Pos|RPath], Energy]|_], _, _, FinalPath) :- % Check for complete
     Energy >= 0,
     achieved(Task, Pos),
-    reverse([Pos|RPath], [_|FinalPath]).
+    reverse([Pos|RPath], FinalPath).
 
 
 solve_task_aStar(Task, [[_, PathCost, [Pos|RPath], Energy]|Rest], Visited, Agent, FinalPath) :-
@@ -142,7 +147,7 @@ solve_task_aStar(Task, [[_, PathCost, [Pos|RPath], Energy]|Rest], Visited, Agent
 solve_task_aStar(Task,  [[[Pos|RPath], Energy]|_], _, _, FinalPath) :- % Check for complete
     Energy >= 0,
     achieved(Task, Pos),
-    reverse([Pos|RPath], [_|FinalPath]).
+    reverse([Pos|RPath], FinalPath).
 
 solve_task_aStar(Task, [[[Pos|RPath], Energy]|Rest], Visited, Agent, FinalPath) :-
 
@@ -224,8 +229,8 @@ find_oracles(Oracles) :-
     find_oracles([[P]], [], [], Oracles).
 
 find_oracles([], _, Oracles, Oracles) :-
-    print_debug('Base Case', 'Queue Empty'),
-    print_debug('Oracles Found', Oracles).
+    print_debug('Base Case', 'Queue Empty').
+    % print_debug('Oracles Found', Oracles).
 
 find_oracles([[Pos|Path]|Rest], Visited, Oracles, FinalOracles) :-
     findall(
@@ -241,9 +246,9 @@ find_oracles([[Pos|Path]|Rest], Visited, Oracles, FinalOracles) :-
         [NewPos],
         (
             map_adjacent(Pos, NewPos, o(_)),  
-            \+ member(NewPos, Oracles),   % NewPos isnt a station already found
-            print_debug("Oracles", Oracles),
-            print_debug("Pos", NewPos)
+            \+ member(NewPos, Oracles)   % NewPos isnt a station already found
+            % print_debug("Oracles", Oracles),
+            % print_debug("Pos", NewPos)
         ),
         OracleNodes
     ),
