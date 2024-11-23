@@ -9,9 +9,16 @@ solve_task(Task, Cost, Path) :-
     get_agent_energy(A, Energy),
     (solve_task_aStar(Task, Energy, Path1) -> 
             print_debug("Path1", Path1),
-            Path1 = [_|Rest],
-            Path = Rest,
+            (Path1 = [] ->
+                Path = [],
+                true
+            ;
+                Path1 = [_|Rest],
+                Path = Rest,
+                true
+            ),
             true
+            
         ;
             print_debug("Here", ""),
             recharge(Task, Path2),
@@ -229,8 +236,8 @@ find_oracles(Oracles) :-
     find_oracles([[P]], [], [], Oracles).
 
 find_oracles([], _, Oracles, Oracles) :-
-    print_debug('Base Case', 'Queue Empty').
-    % print_debug('Oracles Found', Oracles).
+    print_debug('Base Case', 'Queue Empty'),
+    print_debug('Oracles Found', Oracles).
 
 find_oracles([[Pos|Path]|Rest], Visited, Oracles, FinalOracles) :-
     findall(

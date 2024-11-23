@@ -8,6 +8,9 @@ actor_has_link(L,A) :-
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 eliminate([],_,_, _, _,_) :- false.
+eliminate(_,A,_,[],_,_) :- A = unknown.
+
+
 
 
 % Attempt to solve by visiting each oracle in ID order
@@ -23,8 +26,8 @@ eliminate(As,A,Stations, OracleLocations, MaxEnergy,AskEnergy) :-
         % Yes
         print_debug("MaxEnergy", ""),
         find_closest(OracleLocations, Pos, Energy, Agent, Path), % Gets the closest unvisited oracle
-        go_to(Path, Agent, OracleLocations, As, NewOracleLocations, ViableAs),
-        eliminate(ViableAs, A, Stations, NewOracleLocations, MaxEnergy, AskEnergy),
+        go_to(Path, Agent, OracleLocations, As, NewOracleLocations, ViableAs), % Goes to found oracle
+        eliminate(ViableAs, A, Stations, NewOracleLocations, MaxEnergy, AskEnergy), % Recursivve call with one less oracle in list
         true
 
         % Need to then do the bit after aswell 
@@ -33,12 +36,20 @@ eliminate(As,A,Stations, OracleLocations, MaxEnergy,AskEnergy) :-
         print_debug("Not MaxEnergy", ""),
         find_closest(Stations, Pos, Energy, Agent, StationPath), % Gets the closest station 
         
-        (StationPath = [] -> % Cant get to station so may aswell try go to another oracle
+        (StationPath = failed -> % Cant get to station so may aswell try go to another oracle
             print_debug("Can't get to Station", ""),
             find_closest(OracleLocations, Pos, Energy, Agent, OraclePath), % Gets the closest unvisited oracle
-            go_to(OraclePath, Agent, OracleLocations, As, NewOracleLocations, ViableAs),
-            eliminate(ViableAs, A, Stations, NewOracleLocations, MaxEnergy, AskEnergy),
-            true
+            length(OraclePath, OPathLength),
+            OCost is OPathLength -2,
+            (Energy >= (OCost + AskEnergy) -> % Checks it is possible to get to the oracle and ask a question
+                go_to(OraclePath, Agent, OracleLocations, As, NewOracleLocations, ViableAs),
+                eliminate(ViableAs, A, Stations, NewOracleLocations, MaxEnergy, AskEnergy),
+                true
+            ;
+                A = unknown, % If not just returns A as unknown
+                true
+            ),
+            true            
         ;
             print_debug("Can get to Station", ""),
             find_closest(OracleLocations, Pos, Energy, Agent, OraclePath), % Gets the closest unvisited oracle
@@ -76,8 +87,9 @@ eliminate(As,A,Stations, OracleLocations, MaxEnergy,AskEnergy) :-
 
 
 find_closest(ObjectLocations, Pos, Energy, Agent, Path) :-
+    NewEnergy is Energy +2, %Calculates the path but includes 2 extra spaces
     findall(
-            [TotalCost, 0, [ObjectLocation], Energy],
+            [TotalCost, 0, [ObjectLocation], NewEnergy],
             (
             member(ObjectLocation, ObjectLocations),
             man_dist(0, ObjectLocation, Pos, TotalCost) 
@@ -87,9 +99,18 @@ find_closest(ObjectLocations, Pos, Energy, Agent, Path) :-
         sort(Queue, NewQueue),
 
         T = go(Pos),
-        solve_task_aStar(T ,NewQueue, [], Agent, Path),
-        print_debug("Task", T),
-        print_debug("Path to get there", Path).
+
+        (solve_task_aStar(T ,NewQueue, [], Agent, Path) ->
+            print_debug("Task", T),
+            print_debug("Path to get there", Path),
+            true
+        ;
+            Path = failed,
+            print_debug("Task", T),
+            print_debug("Path to get there", Path),
+            true
+        ).
+        
 
 
 go_to(ObjectPath, Agent, ObjectLocations, As, NewObjectLocations, ViableAs) :-
