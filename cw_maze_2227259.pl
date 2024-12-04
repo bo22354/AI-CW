@@ -1,6 +1,6 @@
 agent_at_exit([], _) :- fail. % No agents left to check
 
-agent_at_exit([Agent|Rest], Target) :- %Look at each agent and check if at the exit
+agent_at_exit([Agent|Rest], Target) :- % Look at each agent and check if at the exit
     get_agent_position(Agent, Pos), 
     (Pos = Target -> 
         % If agent is at the target, succeed and cut
@@ -15,7 +15,6 @@ agent_at_exit([Agent|Rest], Target) :- %Look at each agent and check if at the e
         agent_at_exit(Rest, Target)
     ).
 all_exit(Target) :-
-    print_debug("Here", ""),
     my_agents(Agents),
     maplist(get_agent_position, Agents, Positions),
     Task = go(Target),
