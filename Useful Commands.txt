@@ -1,4 +1,6 @@
 T1 = go(p(20,20)), T2 = go(p(1,1)), T3 = go(p(4,10)), solve_task(T1, _, _), solve_task(T2, _, _), solve_task(T3, _, _).
+T1 = find(c(3)), T2 = go(p(1,1)), T3 = go(p(4,10)), solve_task(T1, _, _), solve_task(T2, _, _), solve_task(T3, _, _).
+
 join_game(A), reset_game, start_game, find_identity(A).
 join_game(As, 5), reset_game, start_game, solve_maze.
 

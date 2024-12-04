@@ -3,17 +3,10 @@ actor_has_link(L,A) :-
     actor(A), wp(A,WT), wt_link(WT,L).
 
 
-
-
-
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-eliminate([],_,_, _, _,_) :- false.
-eliminate(_,A,_,[],_,_) :- A = unknown.
+eliminate([],unknown,_, _, _,_) :- !.
+eliminate(_,unknown,_,[],_,_) :- !.
 
-
-
-
-% Attempt to solve by visiting each oracle in ID order
 eliminate(As,A,Stations, OracleLocations, MaxEnergy,AskEnergy) :- 
     As=[A], !
     ;
@@ -62,7 +55,7 @@ eliminate(As,A,Stations, OracleLocations, MaxEnergy,AskEnergy) :-
         ;
             print_debug("Can get to Station", ""),
             find_closest(OracleLocations, Pos, Energy, Agent, OraclePath), % Gets the closest unvisited oracle
-            (OraclePath = failed -> % get to station but not a path  to get any other oravle first
+            (OraclePath = failed -> % get to station but not a path to get any other oracle first
                 print_debug("Going to Station", ""),
                 go_to(StationPath, Agent, Stations, As, _, _),
                 eliminate(As, A, Stations, OracleLocations, MaxEnergy, AskEnergy),
@@ -71,28 +64,37 @@ eliminate(As,A,Stations, OracleLocations, MaxEnergy,AskEnergy) :-
                 OraclePath = [_, L2|_], % Location is where the oracle actually is
 
                 find_closest(Stations, L2, Energy, Agent, StationPath2), % Gets the closest station 
-                
-                length(OraclePath, OPathLength),
-                length(StationPath2, SPathLength),
-                SCost is SPathLength - 2,
-                OCost is OPathLength -2,
-                print_debug("O Cost", OCost),
-                print_debug("S Cost", SCost),
-                (Energy >= (OCost + SCost + AskEnergy) ->
-                    % Yes, go to oracle
-
-                    print_debug("Going oracle and Possibly Station Next Time", ""),
-                    go_to(OraclePath, Agent, OracleLocations, As, NewOracleLocations, ViableAs),
-                    eliminate(ViableAs, A, Stations, NewOracleLocations, MaxEnergy, AskEnergy),
-                    true
-                ;
-                    % No, go to station
+                (StationPath2 = failed -> % Cant get to station from next node so just go station now
                     print_debug("Going to Station", ""),
                     go_to(StationPath, Agent, Stations, As, _, _),
                     eliminate(As, A, Stations, OracleLocations, MaxEnergy, AskEnergy),
-                    true
+                    true  
+                ;
+                    length(OraclePath, OPathLength),
+                    length(StationPath2, SPathLength),
+                    SCost is SPathLength - 2,
+                    OCost is OPathLength -2,
+                    print_debug("O Cost", OCost),
+                    print_debug("S Cost", SCost),
+                    (Energy >= (OCost + SCost + AskEnergy) ->
+                        % Yes, go to oracle
+
+                        print_debug("Going oracle and Possibly Station Next Time", ""),
+                        go_to(OraclePath, Agent, OracleLocations, As, NewOracleLocations, ViableAs),
+                        eliminate(ViableAs, A, Stations, NewOracleLocations, MaxEnergy, AskEnergy),
+                        true
+                    ;
+                        % No, go to station
+                        print_debug("Going to Station", ""),
+                        go_to(StationPath, Agent, Stations, As, _, _),
+                        eliminate(As, A, Stations, OracleLocations, MaxEnergy, AskEnergy),
+                        true
+                    ),
+                    true                
                 ),
-                true            
+                true
+                
+           
             ),
             true
 
@@ -101,9 +103,7 @@ eliminate(As,A,Stations, OracleLocations, MaxEnergy,AskEnergy) :-
     ).
 
 
-
-
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 find_closest(ObjectLocations, Pos, Energy, Agent, Path) :-
     NewEnergy is Energy +2, % Calculates the path but includes 2 extra spaces
     findall(
@@ -137,7 +137,7 @@ find_closest(ObjectLocations, Pos, Energy, Agent, Path) :-
         ).
         
 
-
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 go_to(ObjectPath, Agent, ObjectLocations, As, NewObjectLocations, ViableAs) :-
         ObjectPath = [Location|Rest], % Location is where the oracle actually is
         Rest = [Adjacent|_],
@@ -158,12 +158,42 @@ go_to(ObjectPath, Agent, ObjectLocations, As, NewObjectLocations, ViableAs) :-
         ).
                  
 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+find_oracles(Oracles) :-
+    my_agent(A),
+    get_agent_position(A,P),
+    find_oracles([[P]], [], [], Oracles).
 
+find_oracles([], _, Oracles, Oracles) :- true.
 
+find_oracles([[Pos|Path]|Rest], Visited, Oracles, FinalOracles) :-
+    findall(
+        [NewPos, Pos|Path],
+        (
+            map_adjacent(Pos, NewPos, empty),  
+            \+ member(NewPos, Visited),   % NewPos hasnt been visited
+            \+ member([NewPos|_], Rest)  % NewPos isnt queued to be visited
+        ),
+        EmptyNodes
+    ),
+    findall(
+        [NewPos],
+        (
+            map_adjacent(Pos, NewPos, o(_)),  
+            \+ member(NewPos, Oracles)   % NewPos isnt a station already found
+        ),
+        OracleNodes
+    ),
+
+    maplist(nth0(0), OracleNodes, OraclePositions), % Extract oracle positions
+    ord_union(Oracles, OraclePositions, NewOracles),  
+
+    append(Rest, EmptyNodes, NewQueue), % Add all new exploration options to the queue
+
+    find_oracles(NewQueue, [Pos|Visited], NewOracles, FinalOracles).
 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 % Deduce the identity of the secret actor A
 find_identity(A) :- 
     my_agent(Agent),
@@ -181,8 +211,6 @@ find_identity(A) :-
     print_debug("MAX Energy", MaxEnergy),
     print_debug("Ask Energy", AskEnergy),
     print_debug("-----------------------------------", ""),
-
-
 
     eliminate(As, A, Stations, OracleLocations, MaxEnergy, AskEnergy).
 
