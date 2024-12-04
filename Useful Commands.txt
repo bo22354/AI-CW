@@ -1,65 +1,59 @@
 T1 = go(p(20,20)), T2 = go(p(1,1)), T3 = go(p(4,10)), solve_task(T1, _, _), solve_task(T2, _, _), solve_task(T3, _, _).
+join_game(A), reset_game, start_game, find_identity(A).
+join_game(As, 5), reset_game, start_game, solve_maze.
 
 
+Plans
 
 
+Task 2:
+
+% Find locations of all recharge Stations
+% Go to closest oracle and ask question (-1/10 Energy)
+% Check if enough energy to go to station
+% If you dont then just go to closest oracle and keep going until energy runs out
+% If you do then find next closest oracle and check if we still have enough energy to get back to a charge station
+    % If you wouldnt be able to get back to charge station then go straight to charge station
+    % If you would then repeat the same prrocess (check closest oracle and if that would make it to charge staiton too)
+    % When you eventually go to charge station then go to closest unvisited oracle and repeat process again
 
 
-At Start:
+Task 3:
 
+% 1 Agent
+% Check if in bottom cornerr
+% If you are then exit maze otherwise do following:
 
-Is energy Max:
-    Yes:
-        Go to new oracle
-        Do line 16
-    No:
-        Check if you can go to oracle and then back to station
-            Yes:
-                Go to oracle 
-                Repeat line 16
-            No: 
-                Go to station
-                Repeat line 11
+% Find all options to start with
+% Add current pos to a list called decisions
+% If more than 1 option thats not in completed
+    % Add current position to list called decisions
+    % Move to a one of the new positions
 
+% Else if 1 option thats not in completed
+    % Add current pos to list called completed
+    % And move to the new position
+    % Repeat from beggining
+% Else 
+    % Add current pos to list called completed
+    % Find path to the closest node thats in decision and then repeat from beginning
 
+% Multi Agents
+% Check if any agent is in bottom corner
+% If you are then exit maze and repeatedly find agent with shortest path to exit and move them until all exited
+% otherwise do following:
 
+% Find all options to start with
+% If more than 1 option thats not in completed
+    % Add current position to list called decisions
+    % Move to a one of the new positions
 
-
-
-
-
-
-
-
-
-
-
-
-    (Task = oracle -> % Either at the start, once just go to station, or at oracle and has enough energy left
-        findall(
-            [TotalCost, 0, [OracleLocation], Energy],
-            (
-            member(OracleLocation, OracleLocations),
-            man_dist(0, OracleLocation, Pos, TotalCost) 
-            ),
-            Queue
-        ),
-        sort(Queue, NewQueue),
-        T = go(Pos),
-        solve_task_aStar(T ,NewQueue, [], Agent, Path),
-
-        Path = [Location|Rest], % Location is where the oracle actually is
-        Rest = [Adjacent|_],
-        map_adjacent(Adjacent, Location, Obj), % Gets which oracle were next too
-
-        reverse(Rest, [_|RevPath]), % Removing first element as thats where the agent is
-        print_debug("RevPath", RevPath),
-        agent_do_moves(Agent, RevPath), % Move to the oracles
-        agent_ask_oracle(Agent,Obj,link,L), % Ask question
-        include(actor_has_link(L),As,ViableAs), % Remove any actors that no longer fit
-        select(Location, OracleLocations, NewOracleLocations), % Remove the oracle we just visited from teh list so it cant be visited again
-        eliminate(ViableAs,A, Stations, NewOracleLocations, Task), % Call function again 
-        true
-    ;
-        false    
-    ).
+% Else if 1 option thats not in completed
+    % Add current pos to list called completed
+    % And move to the new position
+    % Repeat from beggining
+% Else 
+    % Add current pos to list called completed
+    % Find path to the closest node thats in decision and then repeat from beginning
+    % If there are no paths to decision node (blocked by an agent)
+        % Set move = []
